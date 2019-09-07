@@ -3,15 +3,22 @@ const path = require('path');
 const favicon = require('serve-favicon');
 const logger = require('morgan');
 const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
 
 const room = require('./routes/room');
 const chat = require('./routes/chat');
 const app = express();
 
+// mongoose.Promise = require('bluebird');
+mongoose.connect('mongodb://localhost/mevn-chat', { useNewUrlParser: true })
+  .then(() =>  console.log('connection succesful'))
+  .catch((err) => console.error(err));
+
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({'extended':'false'}));
 app.use(express.static(path.join(__dirname, 'dist')));
+app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')))
 app.use('/rooms', express.static(path.join(__dirname, 'dist')));
 app.use('/api/room', room);
 app.use('/api/chat', chat);
