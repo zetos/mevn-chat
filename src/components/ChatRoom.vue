@@ -4,7 +4,7 @@
       <h2>
         Chat Room
       </h2>
-      <b-list-group class="panel-body">
+      <b-list-group class="panel-body" v-chat-scroll>
         <!-- TODO: check if index can be used as key -->
         <b-list-group-item v-for="(item, index) in chats" class="chat" v-bind:key="index">
           <div class="left clearfix" v-if="item.nickname === nickname">
@@ -50,6 +50,10 @@
 <script>
 
 import axios from 'axios'
+import Vue from 'vue'
+import * as io from 'socket.io-client'
+import VueChatScroll from 'vue-chat-scroll'
+Vue.use(VueChatScroll)
 
 export default {
   name: 'ChatRoom',
@@ -58,41 +62,46 @@ export default {
       chats: [],
       errors: [],
       nickname: this.$route.params.nickname,
-      chat: {}
+      chat: {},
+      socket: io('http://localhost:4000')
     }
   },
   created () {
-    axios.get(`http://localhost:3000/api/chat/` + this.$route.params.id)
+  axios.get(`http://localhost:3000/api/chat/` + this.$route.params.id)
+  .then(response => {
+    this.chats = response.data
+  })
+  .catch(e => {
+    this.errors.push(e)
+  })
+
+  this.socket.on('new-message', function (data) {
+    if(data.message.room === this.$route.params.id) {
+      this.chats.push(data.message)
+    }
+  }.bind(this))
+},
+  methods: {
+  logout () {
+    this.socket.emit('save-message', { room: this.chat.room, nickname: this.chat.nickname, message: this.chat.nickname + ' left this room', created_date: new Date() });
+    this.$router.push({
+      name: 'RoomList'
+    })
+  },
+  onSubmit (evt) {
+    evt.preventDefault()
+    this.chat.room = this.$route.params.id
+    this.chat.nickname = this.$route.params.nickname
+    axios.post(`http://localhost:3000/api/chat`, this.chat)
     .then(response => {
-      this.chats = response.data
+      this.socket.emit('save-message', response.data)
+      this.chat.message = ''
     })
     .catch(e => {
       this.errors.push(e)
     })
-  },
-  methods: {
-    logout (id) {
-      this.$router.push({
-        name: 'JoinRoom',
-        params: { id: id }
-      })
-    },
-    onSubmit (evt) {
-      evt.preventDefault()
-      this.chat.room = this.$route.params.id
-      this.chat.nickname = this.$route.params.nickname
-      axios.post(`http://localhost:3000/api/chat`, this.chat)
-      .then(response => {
-        // this.$router.push({
-        //   name: 'ChatRoom',
-        //   params: { id: this.$route.params.id, nickname: response.data.nickname }
-        // })
-      })
-      .catch(e => {
-        this.errors.push(e)
-      })
-    }
   }
+}
 }
 </script>
 
